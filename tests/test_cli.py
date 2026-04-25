@@ -260,6 +260,80 @@ def test_ingest_missing_schema_file_exits_with_error(tmp_path):
     assert result.exit_code == 1
 
 
+def test_ingest_schema_evolves_with_new_field(tmp_path):
+    # reference batch: no address field
+    reference = [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]
+    ref_file = tmp_path / "ref.json"
+    ref_file.write_text(json.dumps(reference))
+    schema_file = tmp_path / "schema.json"
+    runner.invoke(app, ["infer", str(ref_file), "--output", str(schema_file)])
+
+    # incoming batch: new documents include address
+    incoming = [
+        {"name": "Carol", "age": 28},
+        {"name": "Dave",  "age": 33, "address": {"city": "SP", "zip": "01310"}},
+    ]
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps(incoming))
+
+    result = runner.invoke(app, [
+        "ingest", str(input_file), str(tmp_path / "table"),
+        "--schema", str(schema_file),
+    ])
+    assert result.exit_code == 0
+    assert "schema evolved" in result.output
+    assert "address" in result.output
+
+    # schema file must be updated with the new field
+    updated = json.loads(schema_file.read_text())
+    assert "address" in updated
+    assert updated["address"]["nullable"] is True
+
+
+def test_ingest_schema_file_unchanged_when_nothing_new(tmp_path):
+    reference = [{"name": "Alice", "age": 30}]
+    ref_file = tmp_path / "ref.json"
+    ref_file.write_text(json.dumps(reference))
+    schema_file = tmp_path / "schema.json"
+    runner.invoke(app, ["infer", str(ref_file), "--output", str(schema_file)])
+
+    original_content = schema_file.read_text()
+
+    incoming = [{"name": "Bob", "age": 25}]
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps(incoming))
+    runner.invoke(app, [
+        "ingest", str(input_file), str(tmp_path / "table"),
+        "--schema", str(schema_file),
+    ])
+
+    assert schema_file.read_text() == original_content
+
+
+def test_ingest_warns_on_type_widening(tmp_path):
+    reference = [{"name": "Alice", "age": 30}]
+    ref_file = tmp_path / "ref.json"
+    ref_file.write_text(json.dumps(reference))
+    schema_file = tmp_path / "schema.json"
+    runner.invoke(app, ["infer", str(ref_file), "--output", str(schema_file)])
+
+    # incoming has age as string in some docs → batch_schema widens age to string
+    incoming = [{"name": "Bob", "age": 25}, {"name": "Carol", "age": "twenty-eight"}]
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps(incoming))
+
+    result = runner.invoke(app, [
+        "ingest", str(input_file), str(tmp_path / "table"),
+        "--schema", str(schema_file),
+    ])
+    assert result.exit_code == 0
+    assert "warning" in result.output
+    assert "age" in result.output
+    # age widening is detected but NOT applied to schema file
+    schema = json.loads(schema_file.read_text())
+    assert schema["age"]["dtype"] == "integer"
+
+
 def test_ingest_output_shows_schema_source(tmp_path):
     reference = [{"name": "Alice"}]
     ref_file = tmp_path / "ref.json"

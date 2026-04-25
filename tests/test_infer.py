@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from nosql_delta_bridge.infer import FieldSchema, InferConfig, infer_schema
+from nosql_delta_bridge.infer import FieldSchema, InferConfig, infer_schema, merge_schemas
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -174,3 +174,82 @@ def test_all_datetime_strings_stay_datetime():
     ]
     schema = infer_schema(docs, InferConfig(detect_datetimes=True))
     assert schema["ts"].dtype == "datetime"
+
+
+# --- merge_schemas ---
+
+def s(dtype: str, nullable: bool) -> FieldSchema:
+    return FieldSchema(dtype=dtype, nullable=nullable)
+
+
+def test_merge_field_in_both_same_type():
+    old = {"name": s("string", False)}
+    new = {"name": s("string", False)}
+    merged = merge_schemas(old, new)
+    assert merged["name"].dtype == "string"
+    assert merged["name"].nullable is False
+
+
+def test_merge_field_in_both_widens_type():
+    old = {"age": s("integer", False)}
+    new = {"age": s("float", False)}
+    merged = merge_schemas(old, new)
+    assert merged["age"].dtype == "float"
+
+
+def test_merge_field_in_both_unifies_nullable():
+    old = {"name": s("string", False)}
+    new = {"name": s("string", True)}
+    merged = merge_schemas(old, new)
+    assert merged["name"].nullable is True
+
+
+def test_merge_field_only_in_old_becomes_nullable():
+    old = {"name": s("string", False), "age": s("integer", False)}
+    new = {"name": s("string", False)}
+    merged = merge_schemas(old, new)
+    assert "age" in merged
+    assert merged["age"].nullable is True
+    assert merged["age"].dtype == "integer"
+
+
+def test_merge_field_only_in_new_added_as_nullable():
+    old = {"name": s("string", False)}
+    new = {"name": s("string", False), "address": s("object", False)}
+    merged = merge_schemas(old, new)
+    assert "address" in merged
+    assert merged["address"].nullable is True
+    assert merged["address"].dtype == "object"
+
+
+def test_merge_both_empty():
+    assert merge_schemas({}, {}) == {}
+
+
+def test_merge_old_empty_takes_all_from_new():
+    new = {"name": s("string", False), "age": s("integer", True)}
+    merged = merge_schemas({}, new)
+    assert set(merged) == {"name", "age"}
+    # all fields from new, but marked nullable since they're "new"
+    assert merged["name"].nullable is True
+
+
+def test_merge_new_empty_keeps_old_as_nullable():
+    old = {"name": s("string", False), "age": s("integer", False)}
+    merged = merge_schemas(old, {})
+    assert merged["name"].nullable is True
+    assert merged["age"].nullable is True
+
+
+def test_merge_preserves_datetime_type():
+    old = {"ts": s("datetime", False)}
+    new = {"ts": s("datetime", False)}
+    merged = merge_schemas(old, new)
+    assert merged["ts"].dtype == "datetime"
+
+
+def test_merge_datetime_conflicts_with_string_widens_to_string():
+    old = {"ts": s("datetime", False)}
+    new = {"ts": s("string", False)}
+    merged = merge_schemas(old, new)
+    assert merged["ts"].dtype == "string"

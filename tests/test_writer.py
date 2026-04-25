@@ -185,6 +185,36 @@ def test_datetime_field_written_as_timestamp(tmp_path):
     assert df["created_at"].iloc[0].year == 2024
 
 
+def test_type_conflict_raises_writer_error(tmp_path):
+    path = tmp_path / "table"
+    config = WriterConfig(table_uri=path, source_collection="users")
+
+    # first write: age as integer
+    schema_v1 = schema_for(("name", "string", False), ("age", "integer", False))
+    write_batch([{"name": "Alice", "age": 30}], schema_v1, config)
+
+    # second write: age as string → conflict with existing int64 column
+    schema_v2 = schema_for(("name", "string", False), ("age", "string", False))
+    with pytest.raises(WriterError, match="type conflict"):
+        write_batch([{"name": "Bob", "age": "thirty"}], schema_v2, config)
+
+
+def test_new_column_does_not_trigger_conflict(tmp_path):
+    path = tmp_path / "table"
+    config = WriterConfig(table_uri=path, source_collection="users")
+
+    schema_v1 = schema_for(("name", "string", False))
+    write_batch([{"name": "Alice"}], schema_v1, config)
+
+    # second write: adds email (new column) — no conflict
+    schema_v2 = schema_for(("name", "string", False), ("email", "string", True))
+    write_batch([{"name": "Bob", "email": "bob@example.com"}], schema_v2, config)
+
+    df = DeltaTable(str(path)).to_pandas()
+    assert len(df) == 2
+    assert "email" in df.columns
+
+
 def test_full_pipeline_users_fixture(tmp_path):
     raw_docs = json.loads((FIXTURES / "users.json").read_text())
     schema = infer_schema(raw_docs)
