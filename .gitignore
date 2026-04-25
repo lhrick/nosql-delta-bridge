@@ -40,3 +40,9 @@ Thumbs.db
 # Delta Lake local tables
 *.delta/
 _delta_log/
+
+# Generated example output (Delta tables, schema files, DLQ files produced by running demos)
+examples/output/
+
+# Default DLQ file created at project root when running bridge without --dlq
+dlq.ndjson
