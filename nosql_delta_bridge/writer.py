@@ -75,12 +75,13 @@ def write_batch(
 # --- internals ---
 
 _DTYPE_TO_ARROW: dict[str, pa.DataType] = {
-    "boolean": pa.bool_(),
-    "integer": pa.int64(),
-    "float":   pa.float64(),
-    "string":  pa.string(),
-    "object":  pa.string(),  # serialized to JSON string
-    "array":   pa.string(),  # serialized to JSON string
+    "boolean":  pa.bool_(),
+    "integer":  pa.int64(),
+    "float":    pa.float64(),
+    "string":   pa.string(),
+    "datetime": pa.timestamp("us", tz="UTC"),
+    "object":   pa.string(),  # serialized to JSON string
+    "array":    pa.string(),  # serialized to JSON string
 }
 
 _AUDIT_FIELDS: list[tuple[str, pa.DataType]] = [
@@ -112,6 +113,11 @@ def _to_arrow(documents: list[dict[str, Any]], schema: dict[str, FieldSchema]) -
     for name, fs in schema.items():
         if fs.dtype in ("object", "array") and name in df.columns:
             df[name] = df[name].apply(lambda v: json.dumps(v) if v is not None else None)
+
+    # convert datetime columns to UTC-aware pandas timestamps for Arrow
+    for name, fs in schema.items():
+        if fs.dtype == "datetime" and name in df.columns:
+            df[name] = pd.to_datetime(df[name], utc=True, errors="coerce")
 
     arrow_schema = _build_arrow_schema(schema)
 

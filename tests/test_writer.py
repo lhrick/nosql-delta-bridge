@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -169,6 +170,20 @@ def test_null_array_field_stays_null(tmp_path):
 
 
 # --- integration: infer + flatten + coerce + write ---
+
+def test_datetime_field_written_as_timestamp(tmp_path):
+    path = tmp_path / "table"
+    config = WriterConfig(table_uri=path, source_collection="events")
+    schema = schema_for(("name", "string", False), ("created_at", "datetime", False))
+    dt = datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
+    write_batch([{"name": "Alice", "created_at": dt}], schema, config)
+
+    df = DeltaTable(str(path)).to_pandas()
+    assert "created_at" in df.columns
+    # pandas stores it as datetime64[us, UTC]
+    assert hasattr(df["created_at"].dtype, "tz")
+    assert df["created_at"].iloc[0].year == 2024
+
 
 def test_full_pipeline_users_fixture(tmp_path):
     raw_docs = json.loads((FIXTURES / "users.json").read_text())

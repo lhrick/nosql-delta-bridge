@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -117,6 +118,8 @@ def _matches_dtype(value: Any, dtype: str) -> bool:
         return isinstance(value, float)
     if dtype == "string":
         return isinstance(value, str)
+    if dtype == "datetime":
+        return isinstance(value, datetime)
     # object and array — no coercion attempted
     return True
 
@@ -147,5 +150,18 @@ def _cast(value: Any, target: str) -> Any:
             if low in _BOOL_FALSE:
                 return False
         raise ValueError(f"cannot cast {value!r} to boolean")
+
+    if target == "datetime":
+        if isinstance(value, (int, float)):
+            return datetime.fromtimestamp(value, tz=timezone.utc)
+        if isinstance(value, str):
+            try:
+                dt = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+            except ValueError:
+                raise ValueError(f"cannot parse {value!r} as an ISO 8601 datetime")
+        raise ValueError(f"cannot cast {type(value).__name__} to datetime")
 
     raise ValueError(f"unsupported target dtype '{target}'")

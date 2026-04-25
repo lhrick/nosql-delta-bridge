@@ -1,9 +1,10 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-from nosql_delta_bridge.infer import FieldSchema, infer_schema
+from nosql_delta_bridge.infer import FieldSchema, InferConfig, infer_schema
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -110,3 +111,66 @@ def test_orders_fixture_total_widens_to_string():
     docs = load("orders.json")
     schema = infer_schema(docs)
     assert schema["total"].dtype == "string"
+
+
+# --- datetime inference ---
+
+def test_datetime_python_object_always_detected():
+    docs = [{"ts": datetime(2024, 1, 15, tzinfo=timezone.utc)}]
+    schema = infer_schema(docs)
+    assert schema["ts"].dtype == "datetime"
+
+
+def test_datetime_python_object_detected_without_config():
+    # Python datetime objects are always typed as datetime regardless of config
+    docs = [{"ts": datetime(2024, 1, 15, tzinfo=timezone.utc)}]
+    assert infer_schema(docs)["ts"].dtype == "datetime"
+
+
+def test_datetime_iso_string_detected_with_config():
+    docs = [{"created_at": "2024-01-15T10:30:00+00:00"}]
+    schema = infer_schema(docs, InferConfig(detect_datetimes=True))
+    assert schema["created_at"].dtype == "datetime"
+
+
+def test_datetime_iso_string_not_detected_by_default():
+    docs = [{"created_at": "2024-01-15T10:30:00+00:00"}]
+    schema = infer_schema(docs)
+    assert schema["created_at"].dtype == "string"
+
+
+def test_datetime_z_suffix_detected():
+    docs = [{"ts": "2024-06-01T00:00:00Z"}]
+    schema = infer_schema(docs, InferConfig(detect_datetimes=True))
+    assert schema["ts"].dtype == "datetime"
+
+
+def test_datetime_date_only_string_detected():
+    docs = [{"date": "2024-01-15"}]
+    schema = infer_schema(docs, InferConfig(detect_datetimes=True))
+    assert schema["date"].dtype == "datetime"
+
+
+def test_datetime_widens_to_string_on_conflict_with_non_datetime():
+    # one doc has a datetime string, another has a plain string
+    docs = [
+        {"ts": "2024-01-15T10:00:00Z"},
+        {"ts": "not-a-date"},
+    ]
+    schema = infer_schema(docs, InferConfig(detect_datetimes=True))
+    assert schema["ts"].dtype == "string"
+
+
+def test_datetime_widens_to_string_on_conflict_with_integer():
+    docs = [{"ts": "2024-01-15T10:00:00Z"}, {"ts": 1234567890}]
+    schema = infer_schema(docs, InferConfig(detect_datetimes=True))
+    assert schema["ts"].dtype == "string"
+
+
+def test_all_datetime_strings_stay_datetime():
+    docs = [
+        {"ts": "2024-01-15T10:00:00Z"},
+        {"ts": "2024-06-30T23:59:59+00:00"},
+    ]
+    schema = infer_schema(docs, InferConfig(detect_datetimes=True))
+    assert schema["ts"].dtype == "datetime"

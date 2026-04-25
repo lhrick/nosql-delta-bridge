@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -177,3 +178,56 @@ def test_pipeline_orders_fixture():
     flat = flatten_document(docs[0])  # clean order, all types correct
     result = coerce_document(flat, schema_inferred)
     assert not result.rejected
+
+
+# --- datetime coercion ---
+
+def test_datetime_object_passes_through():
+    dt = datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
+    doc = {"ts": dt}
+    s = schema(("ts", "datetime", False))
+    result = coerce_document(doc, s)
+    assert not result.rejected
+    assert result.document["ts"] == dt
+
+
+def test_cast_iso_string_to_datetime():
+    doc = {"ts": "2024-01-15T10:30:00+00:00"}
+    s = schema(("ts", "datetime", False))
+    result = coerce_document(doc, s)
+    assert not result.rejected
+    assert isinstance(result.document["ts"], datetime)
+    assert result.document["ts"].year == 2024
+
+
+def test_cast_iso_string_with_z_suffix_to_datetime():
+    doc = {"ts": "2024-06-01T00:00:00Z"}
+    s = schema(("ts", "datetime", False))
+    result = coerce_document(doc, s)
+    assert not result.rejected
+    assert result.document["ts"].tzinfo is not None
+
+
+def test_cast_naive_iso_string_assumes_utc():
+    doc = {"ts": "2024-01-15T10:30:00"}
+    s = schema(("ts", "datetime", False))
+    result = coerce_document(doc, s)
+    assert not result.rejected
+    assert result.document["ts"].tzinfo == timezone.utc
+
+
+def test_cast_integer_epoch_to_datetime():
+    doc = {"ts": 1705316400}  # 2024-01-15T11:00:00Z
+    s = schema(("ts", "datetime", False))
+    result = coerce_document(doc, s)
+    assert not result.rejected
+    assert isinstance(result.document["ts"], datetime)
+    assert result.document["ts"].tzinfo is not None
+
+
+def test_cast_invalid_string_to_datetime_rejects():
+    doc = {"ts": "not-a-date"}
+    s = schema(("ts", "datetime", False))
+    result = coerce_document(doc, s)
+    assert result.rejected
+    assert "ts" in result.reject_reason

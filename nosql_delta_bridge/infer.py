@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 # Widening order for scalar types: each type can absorb anything to its left.
@@ -6,8 +7,13 @@ _WIDEN_ORDER = ["boolean", "integer", "float", "string"]
 
 
 @dataclass
+class InferConfig:
+    detect_datetimes: bool = False
+
+
+@dataclass
 class FieldSchema:
-    dtype: str   # boolean | integer | float | string | object | array
+    dtype: str   # boolean | integer | float | string | object | array | datetime
     nullable: bool = False
 
     def __repr__(self) -> str:
@@ -15,14 +21,22 @@ class FieldSchema:
         return f"FieldSchema({self.dtype}{null})"
 
 
-def infer_schema(documents: list[dict]) -> dict[str, FieldSchema]:
+def infer_schema(
+    documents: list[dict],
+    config: InferConfig | None = None,
+) -> dict[str, FieldSchema]:
     """Infer a unified schema from a batch of documents.
 
     Uses widest-type-wins conflict resolution:
       bool < int < float < string
     Incompatible types (e.g. object vs scalar) widen to string.
     A field missing from any document is marked nullable.
+
+    Pass InferConfig(detect_datetimes=True) to attempt ISO 8601 string detection.
     """
+    if config is None:
+        config = InferConfig()
+
     all_keys: set[str] = set()
     for doc in documents:
         all_keys.update(_extract_paths(doc))
@@ -34,7 +48,7 @@ def infer_schema(documents: list[dict]) -> dict[str, FieldSchema]:
         present = [v for v in values if v is not _MISSING]
         missing_in_some = len(present) < len(documents)
 
-        dtype, has_null = _infer_dtype(present)
+        dtype, has_null = _infer_dtype(present, config.detect_datetimes)
         schema[path] = FieldSchema(dtype=dtype, nullable=missing_in_some or has_null)
 
     return schema
@@ -65,7 +79,15 @@ def _get_path(doc: dict, path: str) -> Any:
     return current
 
 
-def _python_type_to_dtype(value: Any) -> str | None:
+def _looks_like_datetime(value: str) -> bool:
+    try:
+        datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        return True
+    except ValueError:
+        return False
+
+
+def _python_type_to_dtype(value: Any, detect_datetimes: bool = False) -> str | None:
     if value is None:
         return None  # signals nullable
     if isinstance(value, bool):
@@ -74,7 +96,11 @@ def _python_type_to_dtype(value: Any) -> str | None:
         return "integer"
     if isinstance(value, float):
         return "float"
+    if isinstance(value, datetime):
+        return "datetime"
     if isinstance(value, str):
+        if detect_datetimes and _looks_like_datetime(value):
+            return "datetime"
         return "string"
     if isinstance(value, dict):
         return "object"
@@ -87,6 +113,9 @@ def _widen(a: str, b: str) -> str:
     """Return the wider of two dtypes."""
     if a == b:
         return a
+    # datetime conflicts with every other type → string
+    if a == "datetime" or b == "datetime":
+        return "string"
     # Both scalars in the widening order
     if a in _WIDEN_ORDER and b in _WIDEN_ORDER:
         return _WIDEN_ORDER[max(_WIDEN_ORDER.index(a), _WIDEN_ORDER.index(b))]
@@ -94,13 +123,13 @@ def _widen(a: str, b: str) -> str:
     return "string"
 
 
-def _infer_dtype(values: list[Any]) -> tuple[str, bool]:
+def _infer_dtype(values: list[Any], detect_datetimes: bool = False) -> tuple[str, bool]:
     """Return (dtype, has_null) for a list of present values."""
     has_null = False
     dtype: str | None = None
 
     for value in values:
-        vtype = _python_type_to_dtype(value)
+        vtype = _python_type_to_dtype(value, detect_datetimes)
         if vtype is None:
             has_null = True
             continue
