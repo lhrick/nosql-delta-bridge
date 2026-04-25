@@ -21,6 +21,32 @@ class FieldSchema:
         return f"FieldSchema({self.dtype}{null})"
 
 
+def merge_schemas(
+    old: dict[str, FieldSchema],
+    new: dict[str, FieldSchema],
+) -> dict[str, FieldSchema]:
+    """Merge two schemas into a cumulative schema using widest-type-wins rules.
+
+    - Field in both   → widen dtype if needed; nullable if either side is nullable
+    - Field only in old → keep it, mark nullable (absent from new batch)
+    - Field only in new → add it, mark nullable (not in historical data)
+
+    Types only ever widen — the merged schema is always a superset of both inputs.
+    """
+    merged: dict[str, FieldSchema] = {}
+    for key in set(old) | set(new):
+        if key in old and key in new:
+            merged[key] = FieldSchema(
+                dtype=_widen(old[key].dtype, new[key].dtype),
+                nullable=old[key].nullable or new[key].nullable,
+            )
+        elif key in old:
+            merged[key] = FieldSchema(dtype=old[key].dtype, nullable=True)
+        else:
+            merged[key] = FieldSchema(dtype=new[key].dtype, nullable=True)
+    return merged
+
+
 def schema_to_dict(schema: dict[str, FieldSchema]) -> dict:
     """Serialize a schema to a plain dict suitable for JSON export."""
     return {path: {"dtype": fs.dtype, "nullable": fs.nullable} for path, fs in schema.items()}

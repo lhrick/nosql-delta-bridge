@@ -13,6 +13,7 @@ from nosql_delta_bridge.infer import (
     InferConfig,
     FieldSchema,
     infer_schema,
+    merge_schemas,
     schema_from_dict,
     schema_to_dict,
 )
@@ -119,9 +120,12 @@ def ingest(
     source = collection or input_file.stem
 
     # --- schema ---
+    infer_cfg = InferConfig(detect_datetimes=detect_datetimes)
+    batch_schema = infer_schema(raw, infer_cfg)
+
     if schema_file is not None:
         try:
-            schema: dict[str, FieldSchema] = schema_from_dict(
+            old_schema: dict[str, FieldSchema] = schema_from_dict(
                 json.loads(schema_file.read_text(encoding="utf-8"))
             )
         except FileNotFoundError:
@@ -130,10 +134,35 @@ def ingest(
         except (json.JSONDecodeError, KeyError) as exc:
             typer.echo(f"error: invalid schema file {schema_file}: {exc}", err=True)
             raise typer.Exit(1)
-        schema_label = f"schema from {schema_file.name} ({len(schema)} fields)"
+
+        # coerce_schema: old schema only — enforces existing field contracts strictly
+        coerce_schema = old_schema
+
+        # write_schema: old fields (types preserved) + new fields from batch (nullable)
+        # type widening of existing columns is never applied automatically
+        merged = merge_schemas(old_schema, batch_schema)
+        write_schema: dict[str, FieldSchema] = {
+            key: (
+                FieldSchema(dtype=old_schema[key].dtype, nullable=merged[key].nullable)
+                if key in old_schema
+                else merged[key]
+            )
+            for key in merged
+        }
+
+        new_fields = set(write_schema) - set(old_schema)
+        widened = [
+            k for k in old_schema
+            if k in batch_schema and old_schema[k].dtype != batch_schema[k].dtype
+        ]
+        schema_label = f"schema from {schema_file.name} ({len(write_schema)} fields)"
     else:
-        schema = infer_schema(raw, InferConfig(detect_datetimes=detect_datetimes))
-        schema_label = f"{len(schema)} fields inferred"
+        coerce_schema = batch_schema
+        write_schema = batch_schema
+        old_schema = None
+        new_fields = set()
+        widened = []
+        schema_label = f"{len(batch_schema)} fields inferred"
 
     typer.echo(f"{input_file.name}  ·  {len(raw)} documents  ·  {schema_label}")
 
@@ -145,7 +174,7 @@ def ingest(
     with DeadLetterQueue(dlq_path) as dlq:
         for doc in raw:
             flat = flatten_document(doc)
-            result = coerce_document(flat, schema, coerce_cfg)
+            result = coerce_document(flat, coerce_schema, coerce_cfg)
             if result.rejected:
                 dlq.append(doc, reason=result.reject_reason, stage="coerce")
                 rejected_count += 1
@@ -156,7 +185,7 @@ def ingest(
     if good:
         writer_cfg = WriterConfig(table_uri=table_uri, source_collection=source, mode=mode)
         try:
-            written = write_batch(good, schema, writer_cfg)
+            written = write_batch(good, write_schema, writer_cfg)
         except WriterError as exc:
             typer.echo(f"error: {exc}", err=True)
             raise typer.Exit(1)
@@ -168,3 +197,19 @@ def ingest(
         typer.echo(f"  rejected:  {rejected_count}  →  {dlq_path}")
     else:
         typer.echo("  rejected:  0")
+
+    if schema_file is not None:
+        if new_fields:
+            schema_file.write_text(
+                json.dumps(schema_to_dict(write_schema), indent=2), encoding="utf-8"
+            )
+            typer.echo(
+                f"  schema evolved: +{len(new_fields)} field(s) "
+                f"{sorted(new_fields)}  →  {schema_file}"
+            )
+        if widened:
+            typer.echo(f"  warning: type widening detected on fields {widened}")
+            typer.echo(
+                f"  to apply: re-run 'bridge infer' on a combined batch "
+                f"and use --mode overwrite"
+            )

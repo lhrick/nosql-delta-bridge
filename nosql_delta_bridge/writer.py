@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 import pandas as pd
 import pyarrow as pa
-from deltalake import write_deltalake
+from deltalake import DeltaTable, write_deltalake
 
 from nosql_delta_bridge.infer import FieldSchema
 
@@ -57,6 +57,17 @@ def write_batch(
 
     arrow_table = _to_arrow(enriched, schema)
 
+    conflicts = _type_conflicts(arrow_table.schema, config.table_uri)
+    if conflicts:
+        conflict_list = "\n".join(f"  {c}" for c in conflicts)
+        raise WriterError(
+            f"type conflict with existing Delta table at {config.table_uri}:\n"
+            f"{conflict_list}\n"
+            f"The merged schema has widened a type that the table already stores "
+            f"as a narrower type. Re-run 'bridge infer' on a combined batch and "
+            f"use --mode overwrite to rewrite the table with the evolved schema."
+        )
+
     try:
         write_deltalake(
             str(config.table_uri),
@@ -89,6 +100,26 @@ _AUDIT_FIELDS: list[tuple[str, pa.DataType]] = [
     ("_source_collection", pa.string()),
     ("_schema_version",    pa.string()),
 ]
+
+
+def _type_conflicts(arrow_schema: pa.Schema, table_uri: str | Path) -> list[str]:
+    """Return descriptions of columns whose types differ from the existing Delta table."""
+    try:
+        existing = DeltaTable(str(table_uri)).schema().to_arrow()
+    except Exception:
+        return []  # table doesn't exist yet — no conflicts
+
+    conflicts = []
+    for field in arrow_schema:
+        try:
+            existing_field = existing.field(field.name)
+        except KeyError:
+            continue  # new column, will be added via schema_mode="merge"
+        if existing_field.type != field.type:
+            conflicts.append(
+                f"'{field.name}': table={existing_field.type}, incoming={field.type}"
+            )
+    return conflicts
 
 
 def _schema_version(schema: dict[str, FieldSchema]) -> str:
