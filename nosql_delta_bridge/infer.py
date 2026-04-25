@@ -21,6 +21,16 @@ class FieldSchema:
         return f"FieldSchema({self.dtype}{null})"
 
 
+def schema_to_dict(schema: dict[str, FieldSchema]) -> dict:
+    """Serialize a schema to a plain dict suitable for JSON export."""
+    return {path: {"dtype": fs.dtype, "nullable": fs.nullable} for path, fs in schema.items()}
+
+
+def schema_from_dict(data: dict) -> dict[str, FieldSchema]:
+    """Deserialize a schema from a plain dict (as produced by schema_to_dict)."""
+    return {path: FieldSchema(dtype=v["dtype"], nullable=v["nullable"]) for path, v in data.items()}
+
+
 def infer_schema(
     documents: list[dict],
     config: InferConfig | None = None,
