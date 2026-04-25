@@ -1,0 +1,82 @@
+[
+  {
+    "_id": "u001",
+    "name": "Alice",
+    "age": 30,
+    "email": "alice@example.com",
+    "address": {
+      "street": "123 Main St",
+      "city": "São Paulo",
+      "zip": "01310-100"
+    },
+    "tags": ["premium", "verified"],
+    "score": 9.5,
+    "active": true,
+    "created_at": "2023-01-15T10:00:00Z"
+  },
+  {
+    "_id": "u002",
+    "name": "Bob",
+    "age": "25",
+    "email": null,
+    "address": {
+      "street": "456 Oak Ave",
+      "city": "Rio de Janeiro"
+    },
+    "tags": ["free"],
+    "score": null,
+    "active": true,
+    "created_at": "2023-03-22T08:30:00Z"
+  },
+  {
+    "_id": "u003",
+    "name": "Carol",
+    "age": 28,
+    "address": {
+      "street": "789 Pine Rd",
+      "city": "Curitiba",
+      "zip": "80010-020",
+      "country": "Brazil"
+    },
+    "tags": ["premium", "beta", 42],
+    "score": "8.1",
+    "active": "yes",
+    "created_at": "2023-06-01T12:00:00Z",
+    "referral_code": "REF-9900"
+  },
+  {
+    "_id": "u004",
+    "name": "Dave",
+    "age": null,
+    "email": "dave@example.com",
+    "address": null,
+    "tags": [],
+    "score": 7,
+    "active": false,
+    "created_at": "2024-01-10T09:00:00Z",
+    "phone": "+55 11 99999-0000"
+  },
+  {
+    "_id": "u005",
+    "name": 12345,
+    "age": 40,
+    "email": "eve@example.com",
+    "address": {
+      "street": "321 Elm St",
+      "city": "Fortaleza",
+      "zip": 60115000
+    },
+    "tags": ["premium", ["vip", "earlybird"]],
+    "score": 10.0,
+    "active": true,
+    "created_at": "2024-02-28T14:00:00Z",
+    "preferences": {
+      "newsletter": true,
+      "notifications": {
+        "email": true,
+        "sms": false,
+        "push": "only-deals"
+      }
+    }
+  }
+]

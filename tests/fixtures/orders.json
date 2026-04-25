@@ -1,0 +1,78 @@
+[
+  {
+    "_id": "o001",
+    "customer_id": "u001",
+    "status": "delivered",
+    "total": 149.90,
+    "items": [
+      {"product_id": "p01", "qty": 2, "price": 49.95},
+      {"product_id": "p02", "qty": 1, "price": 49.99}
+    ],
+    "shipping": {
+      "carrier": "Correios",
+      "tracking": "BR123456789",
+      "estimated_days": 5
+    },
+    "created_at": "2024-01-05T10:00:00Z"
+  },
+  {
+    "_id": "o002",
+    "customer_id": "u002",
+    "status": 3,
+    "total": "89.90",
+    "items": [
+      {"product_id": "p03", "qty": "1", "price": 89.90}
+    ],
+    "shipping": {
+      "carrier": "FedEx",
+      "tracking": null,
+      "estimated_days": "three"
+    },
+    "created_at": "2024-01-06T11:30:00Z"
+  },
+  {
+    "_id": "o003",
+    "customer_id": "u003",
+    "status": "pending",
+    "total": 0,
+    "items": [],
+    "created_at": "2024-01-07T09:15:00Z",
+    "discount_code": "SAVE10"
+  },
+  {
+    "_id": "o004",
+    "customer_id": "u004",
+    "status": "cancelled",
+    "total": 320.00,
+    "items": [
+      {"product_id": "p04", "qty": 4, "price": 80.00, "gift_wrap": true},
+      "freebie-item"
+    ],
+    "shipping": null,
+    "created_at": "2024-01-08T16:45:00Z",
+    "notes": {
+      "internal": "Customer requested cancellation",
+      "refund": {
+        "amount": 320.00,
+        "method": "credit_card",
+        "processed": false
+      }
+    }
+  },
+  {
+    "_id": "o005",
+    "customer_id": 5,
+    "status": "delivered",
+    "total": 55.00,
+    "items": [
+      {"product_id": "p05", "qty": 1, "price": 55.00}
+    ],
+    "shipping": {
+      "carrier": "DHL",
+      "tracking": "DHL987654",
+      "estimated_days": 2,
+      "signature_required": true
+    },
+    "created_at": "2024-01-09T08:00:00Z"
+  }
+]
