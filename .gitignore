@@ -48,3 +48,4 @@ examples/output/
 dlq.ndjson
 
 DEMO.md
+.env
