@@ -49,3 +49,4 @@ dlq.ndjson
 
 DEMO.md
 .env
+check_bucket.py

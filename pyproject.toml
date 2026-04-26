@@ -8,6 +8,8 @@ version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
     "deltalake>=0.17",
+    "fsspec>=2023.1",
+    "s3fs>=2023.1",
     "pandas>=2.0",
     "pyarrow>=14.0",
     "typer>=0.12",

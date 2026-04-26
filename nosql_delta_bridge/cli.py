@@ -200,8 +200,10 @@ def ingest(
 
     if schema_file is not None:
         if new_fields:
+            # preserve old fields exactly — only append the new ones as nullable
+            evolved_schema = {**old_schema, **{k: write_schema[k] for k in new_fields}}
             schema_file.write_text(
-                json.dumps(schema_to_dict(write_schema), indent=2), encoding="utf-8"
+                json.dumps(schema_to_dict(evolved_schema), indent=2), encoding="utf-8"
             )
             typer.echo(
                 f"  schema evolved: +{len(new_fields)} field(s) "

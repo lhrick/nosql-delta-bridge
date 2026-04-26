@@ -290,6 +290,39 @@ def test_ingest_schema_evolves_with_new_field(tmp_path):
     assert updated["address"]["nullable"] is True
 
 
+def test_ingest_schema_evolution_preserves_existing_nullable_flags(tmp_path):
+    # reference batch: name is non-nullable (never null, always present)
+    reference = [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]
+    ref_file = tmp_path / "ref.json"
+    ref_file.write_text(json.dumps(reference))
+    schema_file = tmp_path / "schema.json"
+    runner.invoke(app, ["infer", str(ref_file), "--output", str(schema_file)])
+
+    original = json.loads(schema_file.read_text())
+    assert original["name"]["nullable"] is False
+
+    # incoming batch: null name (rejected by coerce) + new field + clean doc
+    incoming = [
+        {"name": "Carol", "age": 28, "score": 9.0},
+        {"name": None,    "age": 31, "score": 7.5},  # rejected — name non-nullable
+    ]
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps(incoming))
+
+    result = runner.invoke(app, [
+        "ingest", str(input_file), str(tmp_path / "table"),
+        "--schema", str(schema_file),
+    ])
+    assert result.exit_code == 0
+    assert "schema evolved" in result.output  # score is new
+
+    updated = json.loads(schema_file.read_text())
+    # existing field nullable flag must NOT have been widened by the null in the batch
+    assert updated["name"]["nullable"] is False
+    # new field is nullable
+    assert updated["score"]["nullable"] is True
+
+
 def test_ingest_schema_file_unchanged_when_nothing_new(tmp_path):
     reference = [{"name": "Alice", "age": 30}]
     ref_file = tmp_path / "ref.json"
