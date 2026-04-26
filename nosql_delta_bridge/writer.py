@@ -23,6 +23,7 @@ class WriterConfig:
     table_uri: str | Path
     source_collection: str
     mode: Literal["append", "overwrite"] = "append"
+    storage_options: dict[str, str] | None = None
 
 
 def write_batch(
@@ -57,7 +58,7 @@ def write_batch(
 
     arrow_table = _to_arrow(enriched, schema)
 
-    conflicts = _type_conflicts(arrow_table.schema, config.table_uri)
+    conflicts = _type_conflicts(arrow_table.schema, config.table_uri, config.storage_options)
     if conflicts:
         conflict_list = "\n".join(f"  {c}" for c in conflicts)
         raise WriterError(
@@ -74,6 +75,7 @@ def write_batch(
             arrow_table,
             mode=config.mode,
             schema_mode="merge",
+            storage_options=config.storage_options,
         )
     except Exception as exc:
         raise WriterError(
@@ -102,10 +104,14 @@ _AUDIT_FIELDS: list[tuple[str, pa.DataType]] = [
 ]
 
 
-def _type_conflicts(arrow_schema: pa.Schema, table_uri: str | Path) -> list[str]:
+def _type_conflicts(
+    arrow_schema: pa.Schema,
+    table_uri: str | Path,
+    storage_options: dict[str, str] | None = None,
+) -> list[str]:
     """Return descriptions of columns whose types differ from the existing Delta table."""
     try:
-        existing = DeltaTable(str(table_uri)).schema().to_arrow()
+        existing = DeltaTable(str(table_uri), storage_options=storage_options).schema().to_arrow()
     except Exception:
         return []  # table doesn't exist yet — no conflicts
 
