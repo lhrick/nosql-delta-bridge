@@ -1,6 +1,11 @@
 # nosql-delta-bridge
 
-A Python library for ingesting schema-free NoSQL documents into Delta Lake with predictable, auditable results.
+[![PyPI](https://img.shields.io/pypi/v/nosql-delta-bridge)](https://pypi.org/project/nosql-delta-bridge/)
+[![Python](https://img.shields.io/pypi/pyversions/nosql-delta-bridge)](https://pypi.org/project/nosql-delta-bridge/)
+[![Tests](https://github.com/lhrick/nosql-delta-bridge/actions/workflows/tests.yml/badge.svg)](https://github.com/lhrick/nosql-delta-bridge/actions/workflows/tests.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+Every document either lands in your Delta table or in a DLQ with an explicit rejection reason. Nothing silently crashes your pipeline.
 
 ## The Problem
 
@@ -214,7 +219,7 @@ Pass credentials as `--storage-option KEY=VALUE` (repeatable). Both the Delta ta
 |---|---|---|
 | AWS S3 | `s3://` | tested end-to-end (Cloudflare R2) |
 | Azure Blob Storage | `az://` | tested against Azurite emulator |
-| GCS | `gs://` | writer supported; DLQ untested |
+| GCS | `gs://` | writer supported; DLQ not yet implemented — contributions welcome |
 | Local | plain path | tested |
 
 ### AWS S3 / Cloudflare R2
@@ -304,14 +309,6 @@ pytest -m integration
 **`delta-rs` over Spark.** No cluster required. The full pipeline runs locally on a laptop and writes to a Delta table that any Spark or DuckDB reader can consume. This makes it reproducible for anyone cloning the repo.
 
 **Lossy float-to-integer casts are rejections, not silent truncation.** `30.0 → 30` is lossless and accepted. `25.7 → 25` silently drops `.7`. In a financial or scientific context that is a data quality bug. The coerce layer enforces `float.is_integer()` before casting.
-
----
-
-## What I Would Do Differently
-
-**PySpark-native flatten and coerce.** The library uses Pandas + PyArrow, which works well for batch sizes up to a few million documents per run. The original problem this solves — Spark jobs pulling from MongoDB into Delta Lake — operates at a different scale. A PySpark variant of the `flatten` and `coerce` stages expressed as column transformations or UDFs would allow the same schema enforcement logic to run distributed across a cluster. Schema inference could still run driver-side on a representative sample and then be broadcast to workers. The DLQ in that context would write to a partitioned Delta table rather than NDJSON. The current design made a deliberate trade-off: no cluster required means anyone can clone the repo and run the full pipeline on a laptop. That reproducibility has value, but it is not the right choice for a 100M-document-per-hour production job.
-
-**`--allow-widening` flag for explicit type migrations.** For the case where all documents in a batch changed type, an opt-in flag could auto-rewrite the Delta table with the evolved schema instead of requiring two manual commands. Kept out of scope deliberately — the conservative default should be explicit, not opt-out.
 
 ---
 
