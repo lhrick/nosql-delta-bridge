@@ -206,9 +206,49 @@ When a new field appears in a batch:
 
 ---
 
-## Writing to S3 / Cloudflare R2 / GCS
+## Writing to Cloud Storage
 
-Pass `storage_options` through `WriterConfig` and `DeadLetterQueue`:
+Pass credentials as `--storage-option KEY=VALUE` (repeatable). Both the Delta table URI and the DLQ path accept cloud URIs. The same credentials are forwarded to both the writer and the DLQ automatically.
+
+| Backend | URI scheme | Status |
+|---|---|---|
+| AWS S3 | `s3://` | tested end-to-end (Cloudflare R2) |
+| Azure Blob Storage | `az://` | tested against Azurite emulator |
+| GCS | `gs://` | writer supported; DLQ untested |
+| Local | plain path | tested |
+
+### AWS S3 / Cloudflare R2
+
+```bash
+bridge ingest incoming.json s3://my-bucket/delta/users \
+  --schema users.schema.json \
+  --dlq s3://my-bucket/dlq/users.ndjson \
+  --storage-option AWS_ACCESS_KEY_ID=abc123 \
+  --storage-option AWS_SECRET_ACCESS_KEY=secret \
+  --storage-option AWS_ENDPOINT_URL=https://<account>.r2.cloudflarestorage.com \
+  --storage-option AWS_REGION=auto
+```
+
+### Azure Blob Storage
+
+```bash
+bridge ingest incoming.json az://my-container/delta/users \
+  --schema users.schema.json \
+  --dlq az://my-container/dlq/users.ndjson \
+  --storage-option AZURE_STORAGE_ACCOUNT_NAME=myaccount \
+  --storage-option AZURE_STORAGE_ACCOUNT_KEY=... \
+```
+
+For the Azure Storage Emulator (Azurite):
+
+```bash
+bridge ingest incoming.json az://my-container/delta/users \
+  --storage-option AZURE_STORAGE_ACCOUNT_NAME=devstoreaccount1 \
+  --storage-option AZURE_STORAGE_ACCOUNT_KEY=... \
+  --storage-option AZURE_STORAGE_USE_EMULATOR=true
+```
+
+### Python API
 
 ```python
 from nosql_delta_bridge.writer import WriterConfig, write_batch
@@ -231,7 +271,7 @@ with DeadLetterQueue("s3://my-bucket/dlq/users.ndjson", storage_options=storage_
     ...
 ```
 
-The DLQ uses `fsspec` internally, so the same `storage_options` key format works across S3, GCS, and Azure Blob without any code changes.
+The writer uses `delta-rs` (Rust `object_store`) for all cloud backends. The DLQ uses `fsspec`, which handles credential translation internally — the same `storage_options` key format works across backends without code changes.
 
 ---
 
@@ -241,7 +281,13 @@ The DLQ uses `fsspec` internally, so the same `storage_options` key format works
 pytest
 ```
 
-137 tests across all five modules and the CLI. Fixtures in `tests/fixtures/` are fully synthetic — documents with missing fields, type conflicts, deeply nested structures, and mixed-type arrays. No external services required.
+141 unit tests across all five modules and the CLI. Fixtures in `tests/fixtures/` are fully synthetic — documents with missing fields, type conflicts, deeply nested structures, and mixed-type arrays. No external services required.
+
+To run Azure integration tests (requires Docker):
+
+```bash
+pytest -m integration
+```
 
 ---
 

@@ -20,6 +20,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov",
     "ruff>=0.4",
+    "adlfs>=2023.1",
 ]
 
 [project.scripts]
@@ -34,3 +35,6 @@ select = ["E", "F", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: tests that require external services (Docker, cloud emulators)",
+]
