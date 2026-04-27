@@ -9,11 +9,37 @@ Every document either lands in your Delta table or in a DLQ with an explicit rej
 
 ## The Problem
 
-In my previous role I ran ETL jobs pulling data from MongoDB into Delta Lake using Spark. The pipeline worked fine — until it didn't. A single document where `age` was `"thirty-two"` instead of `32`, or where a previously stable `status` field suddenly appeared as an integer, was enough to break the entire write. The Spark job would fail with a cryptic cast error, the table was left in an inconsistent state, and ops scrambled to figure out which document was the culprit.
+MongoDB's schema-free nature is a feature for application developers. 
+For pipelines, it's a minefield.
 
-The fix was always the same: widen the schema, re-run, and hope the same thing didn't happen tomorrow. There was no DLQ, no audit trail, and no contract that said "this field must be an integer." Bad documents were either silently coerced, dropped, or they crashed everything.
+In my last role I built and maintained more than 10 ETL jobs pulling 
+data from MongoDB collections into Delta Lake using Spark. The problem 
+was never simple type mismatches — it was structural, and it came in 
+three flavors:
 
-`nosql-delta-bridge` is built to eliminate that class of problem. Every document either lands in the Delta table or in a dead-letter queue with an explicit rejection reason. Nothing is silently dropped. Nothing silently crashes the pipeline.
+**Polymorphic fields.** A single field typed as `anyOf[object|bool|string]` 
+in the JSON Schema. Spark infers the schema from a sample, commits to it, 
+and the moment a document outside that sample has a different shape, the 
+entire write fails with a cryptic cast error. The only safe move was casting 
+everything to `StringType` — which meant no type guarantees in the raw table 
+and defensive re-casting in every downstream job.
+
+**Inconsistent nested structs.** Arrays of structs where fields appeared or 
+disappeared depending on the document version. A subfield present in some 
+documents, missing in others, nested structs with subfields that changed shape 
+across batches. Every job ended up with the same boilerplate: rebuild the struct 
+by hand, cast every field explicitly, handle missing fields with `lit(None)`.
+
+**Silent failures.** When the pipeline didn't crash outright, bad documents 
+were silently coerced or dropped. No DLQ, no audit trail, no contract that said 
+"this field must be this type." Problems surfaced three jobs downstream, not at 
+the boundary where they happened.
+
+`nosql-delta-bridge` is the abstraction that should have existed from the start.
+Every document either lands in the Delta table or in a dead-letter queue with an 
+explicit rejection reason. Type conflicts, missing required fields, and structural 
+mismatches are all caught at ingestion — nothing silently crashes, nothing 
+silently disappears.
 
 ---
 
