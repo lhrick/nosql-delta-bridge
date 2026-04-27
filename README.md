@@ -57,7 +57,7 @@ Audit metadata columns are added automatically on every write:
 ## Quickstart
 
 ```bash
-pip install -e ".[dev]"
+pip install nosql-delta-bridge
 ```
 
 ### Infer a schema from known-good data
