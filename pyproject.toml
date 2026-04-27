@@ -5,6 +5,25 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nosql-delta-bridge"
 version = "0.1.0"
+description = "Ingest schema-free NoSQL documents into Delta Lake with predictable, auditable results."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Luiz Henrick Gomes de Oliveira", email = "luizhenrickgomes@gmail.com" }
+]
+keywords = ["delta-lake", "nosql", "mongodb", "etl", "data-engineering", "schema-inference"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
 requires-python = ">=3.10"
 dependencies = [
     "deltalake>=0.17",
