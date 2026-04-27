@@ -7,7 +7,7 @@ name = "nosql-delta-bridge"
 version = "0.1.0"
 description = "Ingest schema-free NoSQL documents into Delta Lake with predictable, auditable results."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
     { name = "Luiz Henrick Gomes de Oliveira", email = "luizhenrickgomes@gmail.com" }
 ]
@@ -16,7 +16,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -42,8 +41,16 @@ dev = [
     "adlfs>=2023.1",
 ]
 
+[project.urls]
+Homepage = "https://github.com/lhrick/nosql-delta-bridge"
+Source = "https://github.com/lhrick/nosql-delta-bridge"
+"Bug Tracker" = "https://github.com/lhrick/nosql-delta-bridge/issues"
+
 [project.scripts]
 bridge = "nosql_delta_bridge.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["nosql_delta_bridge*"]
 
 [tool.ruff]
 line-length = 100
