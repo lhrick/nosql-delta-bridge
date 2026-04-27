@@ -62,6 +62,24 @@ def test_nested_field_paths():
     assert "address.city" in schema
     assert "address.zip" in schema
     assert schema["address.city"].dtype == "string"
+    assert "address" not in schema
+
+
+def test_parent_key_excluded_when_children_present():
+    docs = [{"user": {"name": "Alice", "age": 30}, "score": 9.5}]
+    schema = infer_schema(docs)
+    assert "user.name" in schema
+    assert "user.age" in schema
+    assert "user" not in schema
+    assert "score" in schema
+
+
+def test_deeply_nested_parent_keys_excluded():
+    docs = [{"a": {"b": {"c": 1}}}]
+    schema = infer_schema(docs)
+    assert "a.b.c" in schema
+    assert "a" not in schema
+    assert "a.b" not in schema
 
 
 def test_nested_field_missing_in_some_docs():

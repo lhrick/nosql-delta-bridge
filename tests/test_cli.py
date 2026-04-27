@@ -284,10 +284,13 @@ def test_ingest_schema_evolves_with_new_field(tmp_path):
     assert "schema evolved" in result.output
     assert "address" in result.output
 
-    # schema file must be updated with the new field
+    # schema file must be updated with the new leaf fields — parent key is excluded
     updated = json.loads(schema_file.read_text())
-    assert "address" in updated
-    assert updated["address"]["nullable"] is True
+    assert "address.city" in updated
+    assert "address.zip" in updated
+    assert updated["address.city"]["nullable"] is True
+    assert updated["address.zip"]["nullable"] is True
+    assert "address" not in updated
 
 
 def test_ingest_schema_evolution_preserves_existing_nullable_flags(tmp_path):

@@ -99,9 +99,10 @@ def _extract_paths(doc: dict, prefix: str = "") -> list[str]:
     paths = []
     for key, value in doc.items():
         full = f"{prefix}.{key}" if prefix else key
-        paths.append(full)
         if isinstance(value, dict):
             paths.extend(_extract_paths(value, full))
+        else:
+            paths.append(full)
     return paths
 
 
