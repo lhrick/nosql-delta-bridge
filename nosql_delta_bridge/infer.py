@@ -9,6 +9,7 @@ _WIDEN_ORDER = ["boolean", "integer", "float", "string"]
 @dataclass
 class InferConfig:
     detect_datetimes: bool = False
+    max_depth: int = 5
 
 
 @dataclass
@@ -75,7 +76,7 @@ def infer_schema(
 
     all_keys: set[str] = set()
     for doc in documents:
-        all_keys.update(_extract_paths(doc))
+        all_keys.update(_extract_paths(doc, max_depth=config.max_depth))
 
     schema: dict[str, FieldSchema] = {}
 
@@ -95,12 +96,12 @@ def infer_schema(
 _MISSING = object()
 
 
-def _extract_paths(doc: dict, prefix: str = "") -> list[str]:
+def _extract_paths(doc: dict, prefix: str = "", depth: int = 0, max_depth: int = 5) -> list[str]:
     paths = []
     for key, value in doc.items():
         full = f"{prefix}.{key}" if prefix else key
-        if isinstance(value, dict):
-            paths.extend(_extract_paths(value, full))
+        if isinstance(value, dict) and depth + 1 < max_depth:
+            paths.extend(_extract_paths(value, full, depth + 1, max_depth))
         else:
             paths.append(full)
     return paths

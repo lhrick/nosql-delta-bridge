@@ -269,3 +269,24 @@ def test_merge_datetime_conflicts_with_string_widens_to_string():
     new = {"ts": s("string", False)}
     merged = merge_schemas(old, new)
     assert merged["ts"].dtype == "string"
+
+
+# --- max_depth truncation ---
+
+def test_infer_truncates_at_max_depth():
+    # depth-6 doc: a.b.c.d.e.f — with default max_depth=5 the leaf at level 6
+    # should NOT appear; instead level-5 key "a.b.c.d.e" is kept as object
+    doc = {"a": {"b": {"c": {"d": {"e": {"f": 42}}}}}}
+    schema = infer_schema([doc])
+    assert "a.b.c.d.e" in schema
+    assert schema["a.b.c.d.e"].dtype == "object"
+    assert "a.b.c.d.e.f" not in schema
+
+
+def test_infer_custom_max_depth():
+    doc = {"a": {"b": {"c": 1}}}
+    # max_depth=2: a.b is kept as object, a.b.c is NOT a separate field
+    schema = infer_schema([doc], InferConfig(max_depth=2))
+    assert "a.b" in schema
+    assert schema["a.b"].dtype == "object"
+    assert "a.b.c" not in schema
