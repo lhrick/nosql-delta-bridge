@@ -22,6 +22,22 @@ from nosql_delta_bridge.writer import WriterConfig, WriterError, write_batch
 app = typer.Typer(help="nosql-delta-bridge: ingest NoSQL documents into Delta Lake.")
 
 
+def _parse_storage_options(options: list[str] | None) -> dict[str, str] | None:
+    if not options:
+        return None
+    result: dict[str, str] = {}
+    for opt in options:
+        if "=" not in opt:
+            typer.echo(f"error: --storage-option must be KEY=VALUE, got: {opt!r}", err=True)
+            raise typer.Exit(1)
+        key, _, value = opt.partition("=")
+        if not key:
+            typer.echo(f"error: --storage-option key cannot be empty, got: {opt!r}", err=True)
+            raise typer.Exit(1)
+        result[key] = value
+    return result
+
+
 @app.command()
 def infer(
     input_file: Path = typer.Argument(..., help="JSON file to infer schema from"),
@@ -69,7 +85,7 @@ def infer(
 @app.command()
 def ingest(
     input_file: Path = typer.Argument(..., help="JSON file containing an array of documents"),
-    table_uri: Path = typer.Argument(..., help="Delta Lake table path"),
+    table_uri: str = typer.Argument(..., help="Delta Lake table path or URI (e.g. s3://bucket/path)"),
     schema_file: Optional[Path] = typer.Option(
         None, "--schema",
         help="Pre-inferred schema file (from 'bridge infer'). If omitted, schema is inferred from the input batch.",
@@ -78,9 +94,9 @@ def ingest(
         None, "--collection", "-c",
         help="Source collection name written to _source_collection (defaults to filename stem)",
     ),
-    dlq_path: Path = typer.Option(
+    dlq_path: str = typer.Option(
         "dlq.ndjson", "--dlq",
-        help="Dead letter queue output file for rejected documents",
+        help="Dead letter queue path or URI (e.g. s3://bucket/dlq/failed.ndjson)",
     ),
     detect_datetimes: bool = typer.Option(
         False, "--detect-datetimes",
@@ -89,6 +105,10 @@ def ingest(
     mode: str = typer.Option(
         "append", "--mode",
         help="Write mode: append (default) or overwrite",
+    ),
+    storage_option: Optional[list[str]] = typer.Option(
+        None, "--storage-option",
+        help="Storage credential as KEY=VALUE (repeatable). E.g. --storage-option AWS_ACCESS_KEY_ID=abc",
     ),
 ) -> None:
     """Ingest a JSON file into a Delta Lake table.
@@ -99,6 +119,9 @@ def ingest(
     Pass --schema to coerce against a fixed reference schema so that documents
     violating it are rejected to the DLQ rather than silently widening the schema.
     """
+    # --- storage options ---
+    storage_options = _parse_storage_options(storage_option)
+
     # --- load ---
     try:
         raw: list = json.loads(input_file.read_text(encoding="utf-8"))
@@ -171,7 +194,7 @@ def ingest(
     good: list = []
     rejected_count = 0
 
-    with DeadLetterQueue(dlq_path) as dlq:
+    with DeadLetterQueue(dlq_path, storage_options=storage_options) as dlq:
         for doc in raw:
             flat = flatten_document(doc)
             result = coerce_document(flat, coerce_schema, coerce_cfg)
@@ -183,7 +206,7 @@ def ingest(
 
     # --- write ---
     if good:
-        writer_cfg = WriterConfig(table_uri=table_uri, source_collection=source, mode=mode)
+        writer_cfg = WriterConfig(table_uri=table_uri, source_collection=source, mode=mode, storage_options=storage_options)
         try:
             written = write_batch(good, write_schema, writer_cfg)
         except WriterError as exc:

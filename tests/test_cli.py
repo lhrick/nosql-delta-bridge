@@ -387,3 +387,55 @@ def test_ingest_output_shows_schema_source(tmp_path):
     ])
     assert "schema from" in result.output
     assert "schema.json" in result.output
+
+
+# ── --storage-option ──────────────────────────────────────────────────────────
+
+def test_storage_option_malformed_no_equals(tmp_path):
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps([{"name": "Alice"}]))
+    result = runner.invoke(app, [
+        "ingest", str(input_file), str(tmp_path / "table"),
+        "--storage-option", "AWS_ACCESS_KEY_ID",
+    ])
+    assert result.exit_code == 1
+    assert "KEY=VALUE" in result.output
+
+
+def test_storage_option_malformed_empty_key(tmp_path):
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps([{"name": "Alice"}]))
+    result = runner.invoke(app, [
+        "ingest", str(input_file), str(tmp_path / "table"),
+        "--storage-option", "=somevalue",
+    ])
+    assert result.exit_code == 1
+    assert "key cannot be empty" in result.output
+
+
+def test_storage_option_value_contains_equals(tmp_path):
+    # values that contain = (e.g. base64 tokens) must be handled correctly
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps([{"name": "Alice"}]))
+    # we can't write to a real S3 URI in tests, so just verify parsing doesn't crash
+    # by using a local table with a dummy option that delta-rs ignores for local paths
+    result = runner.invoke(app, [
+        "ingest", str(input_file), str(tmp_path / "table"),
+        "--storage-option", "SOME_TOKEN=abc=def==",
+    ])
+    # exit code depends on whether delta-rs accepts unknown options for local paths;
+    # the important thing is it does NOT exit with "KEY=VALUE" parse error
+    assert "KEY=VALUE" not in result.output
+    assert "key cannot be empty" not in result.output
+
+
+def test_storage_option_multiple_pairs(tmp_path):
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps([{"name": "Alice"}]))
+    result = runner.invoke(app, [
+        "ingest", str(input_file), str(tmp_path / "table"),
+        "--storage-option", "AWS_REGION=auto",
+        "--storage-option", "AWS_ACCESS_KEY_ID=test123",
+    ])
+    assert "KEY=VALUE" not in result.output
+    assert "key cannot be empty" not in result.output
