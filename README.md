@@ -331,5 +331,6 @@ tests/
 
 examples/
 ├── mongo_to_delta.py          # Local two-phase demo: infer schema, then ingest with DLQ
-└── airflow_mongo_to_delta.py  # Production DAG: MongoDB Atlas → Airflow → Delta Lake on R2
+├── airflow_mongo_to_delta.py  # Production DAG: MongoDB Atlas → Airflow → Delta Lake on R2
+└── data/                      # Synthetic JSON fixtures used by the local demo
 ```
