@@ -1,11 +1,8 @@
 import json
 from datetime import datetime
-from pathlib import Path
-
-import pytest
 
 from nosql_delta_bridge.coerce import coerce_document
-from nosql_delta_bridge.dlq import DeadLetterQueue, DLQEntry, DLQError
+from nosql_delta_bridge.dlq import DeadLetterQueue, DLQEntry
 from nosql_delta_bridge.infer import FieldSchema
 
 

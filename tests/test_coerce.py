@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 
 from nosql_delta_bridge.coerce import Action, CoerceConfig, coerce_document
-from nosql_delta_bridge.infer import FieldSchema, infer_schema
 from nosql_delta_bridge.flatten import flatten_document
+from nosql_delta_bridge.infer import FieldSchema, infer_schema
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-import pytest
 from deltalake import DeltaTable
 from typer.testing import CliRunner
 

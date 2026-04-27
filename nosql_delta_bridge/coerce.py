@@ -79,7 +79,10 @@ def coerce_document(
                 document=None,
                 warnings={},
                 rejected=True,
-                reject_reason=f"type mismatch on '{field_path}': expected {field_schema.dtype}, got {type(value).__name__}",
+                reject_reason=(
+                    f"type mismatch on '{field_path}': "
+                    f"expected {field_schema.dtype}, got {type(value).__name__}"
+                ),
             )
 
         if action == Action.FLAG:

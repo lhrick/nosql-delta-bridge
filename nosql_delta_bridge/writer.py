@@ -129,7 +129,7 @@ def _type_conflicts(
 
 
 def _schema_version(schema: dict[str, FieldSchema]) -> str:
-    """8-char SHA256 of sorted field_path:dtype pairs. Changes when fields are added or types widen."""
+    """8-char SHA256 of sorted field_path:dtype pairs."""
     payload = ",".join(f"{k}:{v.dtype}" for k, v in sorted(schema.items()))
     return hashlib.sha256(payload.encode()).hexdigest()[:8]
 

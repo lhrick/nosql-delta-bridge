@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from airflow.decorators import dag, task
-
 
 R2_BUCKET   = "s3://nosql-delta-bridge"
 SCHEMA_PATH = "/opt/airflow/config/users.schema.json"

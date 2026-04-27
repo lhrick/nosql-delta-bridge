@@ -17,7 +17,7 @@ import pytest
 
 AZURITE_ACCOUNT = "devstoreaccount1"
 # Key from Azurite 3.35.0 source — differs from the outdated "well-known" key in older docs
-AZURITE_KEY = "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+AZURITE_KEY = "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="  # noqa: E501
 AZURITE_CONNECTION_STRING = (
     f"DefaultEndpointsProtocol=http;"
     f"AccountName={AZURITE_ACCOUNT};"
@@ -67,12 +67,13 @@ def _create_azurite_container(container: str) -> None:
         f"http://127.0.0.1:10000/{AZURITE_ACCOUNT}/{container}?restype=container",
         headers=headers,
     )
-    assert resp.status_code in (201, 409), f"Failed to create container: {resp.status_code} {resp.text}"
+    assert resp.status_code in (201, 409), (
+        f"Failed to create container: {resp.status_code} {resp.text}"
+    )
 
 
 def _read_azurite_blob(container: str, blob_path: str) -> str:
     import requests
-    cr_suffix = f"/{blob_path}"
     date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
     cr = f"/{AZURITE_ACCOUNT}/{AZURITE_ACCOUNT}/{container}/{blob_path}"
     sts = f"GET\n\n\n\n\n\n\n\n\n\n\n\nx-ms-date:{date}\nx-ms-version:2019-02-02\n{cr}"
@@ -180,7 +181,11 @@ def test_dlq_writes_to_azure(azurite):
 
     dlq_uri = f"az://{CONTAINER}/dlq/rejected.ndjson"
     with DeadLetterQueue(dlq_uri, storage_options=azurite) as dlq:
-        dlq.append({"name": None, "age": 30}, reason="null on non-nullable field 'name'", stage="coerce")
+        dlq.append(
+            {"name": None, "age": 30},
+            reason="null on non-nullable field 'name'",
+            stage="coerce",
+        )
         dlq.append({"name": "Bob", "age": "twenty"}, reason="cast failed on 'age'", stage="coerce")
 
     content = _read_azurite_blob(CONTAINER, "dlq/rejected.ndjson")
@@ -196,6 +201,7 @@ def test_dlq_writes_to_azure(azurite):
 @pytest.mark.integration
 def test_cli_ingest_to_azure(azurite, tmp_path):
     from typer.testing import CliRunner
+
     from nosql_delta_bridge.cli import app
 
     input_file = tmp_path / "input.json"

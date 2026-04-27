@@ -2,8 +2,6 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-import pytest
-
 from nosql_delta_bridge.infer import FieldSchema, InferConfig, infer_schema, merge_schemas
 
 FIXTURES = Path(__file__).parent / "fixtures"

@@ -10,8 +10,8 @@ from nosql_delta_bridge.coerce import CoerceConfig, coerce_document
 from nosql_delta_bridge.dlq import DeadLetterQueue
 from nosql_delta_bridge.flatten import flatten_document
 from nosql_delta_bridge.infer import (
-    InferConfig,
     FieldSchema,
+    InferConfig,
     infer_schema,
     merge_schemas,
     schema_from_dict,
@@ -88,7 +88,10 @@ def ingest(
     table_uri: str = typer.Argument(..., help="Delta Lake table path or URI (e.g. s3://bucket/path)"),
     schema_file: Optional[Path] = typer.Option(
         None, "--schema",
-        help="Pre-inferred schema file (from 'bridge infer'). If omitted, schema is inferred from the input batch.",
+        help=(
+            "Pre-inferred schema file (from 'bridge infer'). "
+            "If omitted, schema is inferred from the input batch."
+        ),
     ),
     collection: Optional[str] = typer.Option(
         None, "--collection", "-c",
@@ -108,7 +111,7 @@ def ingest(
     ),
     storage_option: Optional[list[str]] = typer.Option(
         None, "--storage-option",
-        help="Storage credential as KEY=VALUE (repeatable). E.g. --storage-option AWS_ACCESS_KEY_ID=abc",
+        help="Storage credential as KEY=VALUE (repeatable). E.g. --storage-option AWS_ACCESS_KEY_ID=abc",  # noqa: E501
     ),
 ) -> None:
     """Ingest a JSON file into a Delta Lake table.
@@ -206,7 +209,12 @@ def ingest(
 
     # --- write ---
     if good:
-        writer_cfg = WriterConfig(table_uri=table_uri, source_collection=source, mode=mode, storage_options=storage_options)
+        writer_cfg = WriterConfig(
+            table_uri=table_uri,
+            source_collection=source,
+            mode=mode,
+            storage_options=storage_options,
+        )
         try:
             written = write_batch(good, write_schema, writer_cfg)
         except WriterError as exc:
@@ -235,6 +243,6 @@ def ingest(
         if widened:
             typer.echo(f"  warning: type widening detected on fields {widened}")
             typer.echo(
-                f"  to apply: re-run 'bridge infer' on a combined batch "
-                f"and use --mode overwrite"
+                "  to apply: re-run 'bridge infer' on a combined batch "
+                "and use --mode overwrite"
             )

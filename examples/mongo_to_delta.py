@@ -85,7 +85,8 @@ run([
 
 section("Delta table — written rows")
 
-from deltalake import DeltaTable
+from deltalake import DeltaTable  # noqa: E402
+
 df = DeltaTable(str(OUTPUT / "users_delta")).to_pandas()
 
 print(f"\n{len(df)} rows written\n")

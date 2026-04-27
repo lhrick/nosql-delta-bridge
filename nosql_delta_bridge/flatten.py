@@ -9,11 +9,15 @@ def flatten_document(doc: dict, max_depth: int = 5, separator: str = ".") -> dic
     Arrays are kept as Python lists — their elements are not recursed into.
     """
     result = {}
-    _flatten_recursive(doc, prefix="", depth=0, max_depth=max_depth, separator=separator, out=result)
+    _flatten_recursive(
+        doc, prefix="", depth=0, max_depth=max_depth, separator=separator, out=result
+    )
     return result
 
 
-def flatten_documents(documents: list[dict], max_depth: int = 5, separator: str = ".") -> list[dict]:
+def flatten_documents(
+    documents: list[dict], max_depth: int = 5, separator: str = "."
+) -> list[dict]:
     return [flatten_document(doc, max_depth=max_depth, separator=separator) for doc in documents]
 
 
