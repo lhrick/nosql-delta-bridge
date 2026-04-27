@@ -309,6 +309,8 @@ pytest -m integration
 
 ## What I Would Do Differently
 
+**PySpark-native flatten and coerce.** The library uses Pandas + PyArrow, which works well for batch sizes up to a few million documents per run. The original problem this solves — Spark jobs pulling from MongoDB into Delta Lake — operates at a different scale. A PySpark variant of the `flatten` and `coerce` stages expressed as column transformations or UDFs would allow the same schema enforcement logic to run distributed across a cluster. Schema inference could still run driver-side on a representative sample and then be broadcast to workers. The DLQ in that context would write to a partitioned Delta table rather than NDJSON. The current design made a deliberate trade-off: no cluster required means anyone can clone the repo and run the full pipeline on a laptop. That reproducibility has value, but it is not the right choice for a 100M-document-per-hour production job.
+
 **`--allow-widening` flag for explicit type migrations.** For the case where all documents in a batch changed type, an opt-in flag could auto-rewrite the Delta table with the evolved schema instead of requiring two manual commands. Kept out of scope deliberately — the conservative default should be explicit, not opt-out.
 
 ---
@@ -328,5 +330,6 @@ tests/
 └── fixtures/      # Synthetic messy JSON documents (no external deps)
 
 examples/
-└── mongo_to_delta.py  # End-to-end demo: MongoDB Atlas → Delta Lake on Cloudflare R2
+├── mongo_to_delta.py          # Local two-phase demo: infer schema, then ingest with DLQ
+└── airflow_mongo_to_delta.py  # Production DAG: MongoDB Atlas → Airflow → Delta Lake on R2
 ```
