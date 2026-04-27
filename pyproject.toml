@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nosql-delta-bridge"
-version = "0.1.0"
-description = "Ingest schema-free NoSQL documents into Delta Lake with predictable, auditable results."
+version = "0.1.1"
+description = "NoSQL to Delta Lake ingestion with schema enforcement, type coercion, and a dead-letter queue. Nothing silently crashes your pipeline."
 readme = "README.md"
 license = "MIT"
 authors = [
