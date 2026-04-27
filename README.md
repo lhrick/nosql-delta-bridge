@@ -263,10 +263,6 @@ pytest
 
 ## What I Would Do Differently
 
-**`--storage-options` on the CLI.** Right now, cloud credentials must be passed via the Python API or environment variables. A `bridge ingest --storage-options key=val` flag would let the CLI write directly to S3/R2 without Airflow as the wrapper.
-
-**Publish to PyPI.** Currently installed via `pip install -e .`. Publishing removes the volume-mount workaround needed to use the library inside Airflow containers.
-
 **`--allow-widening` flag for explicit type migrations.** For the case where all documents in a batch changed type, an opt-in flag could auto-rewrite the Delta table with the evolved schema instead of requiring two manual commands. Kept out of scope deliberately — the conservative default should be explicit, not opt-out.
 
 ---
