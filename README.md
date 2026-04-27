@@ -312,7 +312,7 @@ The writer uses `delta-rs` (Rust `object_store`) for all cloud backends. The DLQ
 pytest
 ```
 
-141 unit tests across all five modules and the CLI. Fixtures in `tests/fixtures/` are fully synthetic — documents with missing fields, type conflicts, deeply nested structures, and mixed-type arrays. No external services required.
+143 unit tests across all five modules and the CLI. Fixtures in `tests/fixtures/` are fully synthetic — documents with missing fields, type conflicts, deeply nested structures, and mixed-type arrays. No external services required.
 
 To run Azure integration tests (requires Docker):
 
