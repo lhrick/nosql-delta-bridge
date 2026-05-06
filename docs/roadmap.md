@@ -10,3 +10,7 @@
 
 - **GCS DLQ support** — the writer supports GCS via delta-rs; the DLQ needs a `_gcsfs_kwargs` translator and integration tests against `fake-gcs-server`.
 - **`--allow-widening` flag** — opt-in auto-overwrite of the Delta table when all documents in a batch agree on the new type (Scenario 7 in the pipeline behaviour table).
+
+## Completed
+
+- **Depth truncation warning** — `bridge infer` and `bridge ingest` now warn when fields are stopped at `max_depth`, listing the boundary paths and their immediate sub-keys. Implemented via `find_truncated_paths` in `infer.py` (step 13).

@@ -198,6 +198,21 @@ The column still exists in Delta when the limit is hit — it holds a serialized
 
 Lower `max_depth` when documents are extremely wide or deeply nested across many schema variants. A product catalog with 10-level-deep `specs` objects across 500 product types can easily produce hundreds of distinct column names with the default depth. Capping the recursion keeps the schema manageable; the deep structure lands in an opaque column you can process separately.
 
+### Truncation warning
+
+When fields are stopped at the depth boundary, both `bridge infer` and `bridge ingest` print a warning listing the affected paths and their immediate sub-keys:
+
+```
+  warning: 1 field(s) truncated at max_depth=5
+    device.specs.bench.meta  (sub-keys: flags, lab, version)
+  stored as object (JSON string) — raise max_depth or extract downstream
+```
+
+The data is not lost — it is inside the JSON string at the boundary column. Two remediation paths:
+
+- **Raise `max_depth`**: re-infer the schema and overwrite the table so the sub-fields become proper columns.
+- **Extract downstream**: use `json_extract` (DuckDB) or `get_json_object` / `from_json` (Spark) in the silver layer and leave the bronze layer as-is.
+
 ### Arrays
 
 Arrays are never recursed into — they are kept as Python lists and stored as list columns in Delta Lake:
@@ -312,7 +327,7 @@ The writer uses `delta-rs` (Rust `object_store`) for all cloud backends. The DLQ
 pytest
 ```
 
-143 unit tests across all five modules and the CLI. Fixtures in `tests/fixtures/` are fully synthetic — documents with missing fields, type conflicts, deeply nested structures, and mixed-type arrays. No external services required.
+155 unit tests across all five modules and the CLI. Fixtures in `tests/fixtures/` are fully synthetic — documents with missing fields, type conflicts, deeply nested structures, and mixed-type arrays. No external services required.
 
 To run Azure integration tests (requires Docker):
 
