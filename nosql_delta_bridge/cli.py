@@ -12,6 +12,7 @@ from nosql_delta_bridge.flatten import flatten_document
 from nosql_delta_bridge.infer import (
     FieldSchema,
     InferConfig,
+    find_truncated_paths,
     infer_schema,
     merge_schemas,
     schema_from_dict,
@@ -73,13 +74,23 @@ def infer(
         typer.echo(f"warning: {input_file} contains no documents, nothing to infer")
         return
 
-    schema = infer_schema(raw, InferConfig(detect_datetimes=detect_datetimes))
+    infer_cfg = InferConfig(detect_datetimes=detect_datetimes)
+    schema = infer_schema(raw, infer_cfg)
+    truncated = find_truncated_paths(raw, max_depth=infer_cfg.max_depth)
 
     out_path = output or input_file.with_suffix(".schema.json")
     out_path.write_text(json.dumps(schema_to_dict(schema), indent=2), encoding="utf-8")
 
     typer.echo(f"{input_file.name}  ·  {len(raw)} documents  ·  {len(schema)} fields")
     typer.echo(f"  schema written  →  {out_path}")
+
+    if truncated:
+        typer.echo(
+            f"  warning: {len(truncated)} field(s) truncated at max_depth={infer_cfg.max_depth}"
+        )
+        for path, sub_keys in sorted(truncated.items()):
+            typer.echo(f"    {path}  (sub-keys: {', '.join(sub_keys)})")
+        typer.echo("  stored as object (JSON string) — raise max_depth or extract downstream")
 
 
 @app.command()
@@ -148,6 +159,7 @@ def ingest(
     # --- schema ---
     infer_cfg = InferConfig(detect_datetimes=detect_datetimes)
     batch_schema = infer_schema(raw, infer_cfg)
+    truncated = find_truncated_paths(raw, max_depth=infer_cfg.max_depth)
 
     if schema_file is not None:
         try:
@@ -246,3 +258,11 @@ def ingest(
                 "  to apply: re-run 'bridge infer' on a combined batch "
                 "and use --mode overwrite"
             )
+
+    if truncated:
+        typer.echo(
+            f"  warning: {len(truncated)} field(s) truncated at max_depth={infer_cfg.max_depth}"
+        )
+        for path, sub_keys in sorted(truncated.items()):
+            typer.echo(f"    {path}  (sub-keys: {', '.join(sub_keys)})")
+        typer.echo("  stored as object (JSON string) — raise max_depth or extract downstream")

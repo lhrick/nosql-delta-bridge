@@ -96,14 +96,39 @@ def infer_schema(
 _MISSING = object()
 
 
-def _extract_paths(doc: dict, prefix: str = "", depth: int = 0, max_depth: int = 5) -> list[str]:
+def find_truncated_paths(
+    documents: list[dict],
+    max_depth: int = 5,
+) -> dict[str, list[str]]:
+    """Return paths where recursion stopped at max_depth with a dict value still present.
+
+    Keys are the boundary paths (e.g. 'device.specs.bench.meta'); values are the
+    sorted list of sub-keys seen across all documents at that boundary.
+    """
+    truncated: dict[str, set[str]] = {}
+    for doc in documents:
+        _extract_paths(doc, max_depth=max_depth, truncated=truncated)
+    return {path: sorted(keys) for path, keys in truncated.items()}
+
+
+def _extract_paths(
+    doc: dict,
+    prefix: str = "",
+    depth: int = 0,
+    max_depth: int = 5,
+    truncated: dict[str, set[str]] | None = None,
+) -> list[str]:
     paths = []
     for key, value in doc.items():
         full = f"{prefix}.{key}" if prefix else key
         if isinstance(value, dict) and depth + 1 < max_depth:
-            paths.extend(_extract_paths(value, full, depth + 1, max_depth))
+            paths.extend(_extract_paths(value, full, depth + 1, max_depth, truncated))
         else:
             paths.append(full)
+            if isinstance(value, dict) and truncated is not None:
+                if full not in truncated:
+                    truncated[full] = set()
+                truncated[full].update(value.keys())
     return paths
 
 

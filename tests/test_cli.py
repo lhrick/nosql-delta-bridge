@@ -438,3 +438,50 @@ def test_storage_option_multiple_pairs(tmp_path):
     ])
     assert "KEY=VALUE" not in result.output
     assert "key cannot be empty" not in result.output
+
+
+# ── depth truncation warning ──────────────────────────────────────────────────
+
+def test_infer_warns_on_truncated_paths(tmp_path):
+    deep = [{"a": {"b": {"c": {"d": {"e": {"f": 42}}}}}}]
+    input_file = tmp_path / "deep.json"
+    input_file.write_text(json.dumps(deep))
+
+    result = runner.invoke(app, ["infer", str(input_file), "--output", str(tmp_path / "s.json")])
+    assert result.exit_code == 0
+    assert "truncated" in result.output
+    assert "a.b.c.d.e" in result.output
+    assert "f" in result.output
+
+
+def test_infer_no_warning_when_within_depth(tmp_path):
+    shallow = [{"a": {"b": {"c": 1}}}]
+    input_file = tmp_path / "shallow.json"
+    input_file.write_text(json.dumps(shallow))
+
+    result = runner.invoke(app, ["infer", str(input_file), "--output", str(tmp_path / "s.json")])
+    assert result.exit_code == 0
+    assert "truncated" not in result.output
+
+
+def test_ingest_warns_on_truncated_paths(tmp_path):
+    deep = [{"name": "Alice", "meta": {"a": {"b": {"c": {"d": {"x": 1, "y": 2}}}}}}]
+    input_file = tmp_path / "deep.json"
+    input_file.write_text(json.dumps(deep))
+
+    result = runner.invoke(app, ["ingest", str(input_file), str(tmp_path / "table")])
+    assert result.exit_code == 0
+    assert "truncated" in result.output
+    assert "meta.a.b.c.d" in result.output
+    assert "x" in result.output
+    assert "y" in result.output
+
+
+def test_ingest_no_warning_when_within_depth(tmp_path):
+    shallow = [{"name": "Alice", "address": {"city": "SP"}}]
+    input_file = tmp_path / "shallow.json"
+    input_file.write_text(json.dumps(shallow))
+
+    result = runner.invoke(app, ["ingest", str(input_file), str(tmp_path / "table")])
+    assert result.exit_code == 0
+    assert "truncated" not in result.output

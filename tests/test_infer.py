@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from nosql_delta_bridge.infer import FieldSchema, InferConfig, infer_schema, merge_schemas
+from nosql_delta_bridge.infer import FieldSchema, InferConfig, find_truncated_paths, infer_schema, merge_schemas
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -290,3 +290,58 @@ def test_infer_custom_max_depth():
     assert "a.b" in schema
     assert schema["a.b"].dtype == "object"
     assert "a.b.c" not in schema
+
+
+# --- find_truncated_paths ---
+
+def test_truncated_paths_detects_boundary_dict():
+    doc = {"a": {"b": {"c": {"d": {"e": {"f": 42}}}}}}
+    truncated = find_truncated_paths([doc])
+    assert "a.b.c.d.e" in truncated
+    assert truncated["a.b.c.d.e"] == ["f"]
+
+
+def test_truncated_paths_empty_when_within_depth():
+    doc = {"a": {"b": {"c": 1}}}
+    assert find_truncated_paths([doc]) == {}
+
+
+def test_truncated_paths_reports_sub_keys():
+    doc = {"a": {"b": {"c": {"d": {"e": {"x": 1, "y": 2, "z": 3}}}}}}
+    truncated = find_truncated_paths([doc])
+    assert truncated["a.b.c.d.e"] == ["x", "y", "z"]
+
+
+def test_truncated_paths_merges_sub_keys_across_documents():
+    docs = [
+        {"meta": {"a": {"b": {"c": {"d": {"key1": 1}}}}}},
+        {"meta": {"a": {"b": {"c": {"d": {"key2": 2}}}}}},
+    ]
+    truncated = find_truncated_paths(docs)
+    assert "meta.a.b.c.d" in truncated
+    assert truncated["meta.a.b.c.d"] == ["key1", "key2"]
+
+
+def test_truncated_paths_custom_max_depth():
+    doc = {"a": {"b": {"c": 1}}}
+    truncated = find_truncated_paths([doc], max_depth=2)
+    assert "a.b" in truncated
+    assert truncated["a.b"] == ["c"]
+
+
+def test_truncated_paths_no_false_positive_for_arrays():
+    doc = {"a": {"b": {"c": {"d": {"e": [1, 2, 3]}}}}}
+    truncated = find_truncated_paths([doc])
+    assert truncated == {}
+
+
+def test_truncated_paths_empty_documents():
+    assert find_truncated_paths([]) == {}
+
+
+def test_truncated_paths_does_not_affect_infer_schema():
+    doc = {"a": {"b": {"c": {"d": {"e": {"f": 42}}}}}}
+    schema_before = infer_schema([doc])
+    find_truncated_paths([doc])
+    schema_after = infer_schema([doc])
+    assert schema_before == schema_after
