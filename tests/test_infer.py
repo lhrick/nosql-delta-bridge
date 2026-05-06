@@ -2,7 +2,13 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from nosql_delta_bridge.infer import FieldSchema, InferConfig, find_truncated_paths, infer_schema, merge_schemas
+from nosql_delta_bridge.infer import (
+    FieldSchema,
+    InferConfig,
+    find_truncated_paths,
+    infer_schema,
+    merge_schemas,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
